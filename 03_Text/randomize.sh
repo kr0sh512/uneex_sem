@@ -1,0 +1,50 @@
+#!/bin/bash
+exit_handler() {
+  trap - EXIT
+  tput cup $(($(tput lines) + 1)) 0
+  exit
+} # чтобы скинуть позицию курсора в конец
+
+trap exit_handler EXIT HUP INT QUIT PIPE TERM
+
+input=$(cat)
+
+delay=${1:-0}
+
+tput clear
+
+# требуется, чтобы строки были одной длины (можно переделать под массив, но дальше логику вычислений менять надо)
+char_in_line=-1 
+
+arr=()
+while IFS= read -r -n1 char; do
+    if [[ -z "$char" ]]; then
+        arr+=($'\n')
+        if [[ "$char_in_line" -eq -1 ]]; then
+            char_in_line=${#arr[@]}
+        fi
+    else
+        arr+=("$char")
+    fi
+done <<< "$input"
+
+arr_num=()
+
+for i in "${!arr[@]}"; do
+    arr_num[i]=$i
+done
+
+shuffled=($(printf "%s\n" "${arr_num[@]}" | shuf))
+
+for i in "${!shuffled[@]}"; do
+    if [[ "${arr[${shuffled[i]}]}" != [[:space:]] ]]; then # в идеале и проверку на символ конца строки
+        tput cup $((${shuffled[i]} / $char_in_line)) $((${shuffled[i]} % $char_in_line))
+        shuffled[i]="${arr[${shuffled[i]}]}"
+        printf "%c" "${shuffled[i]}"
+        sleep $delay
+    fi
+done
+
+tput cup $((${#arr[@]} / $char_in_line)) 0
+
+printf "\n"
